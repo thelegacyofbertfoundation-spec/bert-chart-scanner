@@ -1,6 +1,13 @@
-python-telegram-bot==21.3
-google-generativeai==0.7.2
-flask==3.0.3
-gunicorn==22.0.0
-aiohttp==3.9.5
-Pillow==10.4.0
+🔬 BERT Chart Scanner - Starting...
+🌐 Starting server (webhook mode)...
+2026-02-18 19:10:17,848 - web_server - INFO - 🔬 Dr. Inker Chart Scanner starting...
+2026-02-18 19:10:17,851 - web_server - INFO - 🤖 Bot thread started (webhook mode)
+[2026-02-18 19:10:17 +0000] [1] [INFO] Starting gunicorn 22.0.0
+[2026-02-18 19:10:17 +0000] [1] [INFO] Listening at: http://0.0.0.0:8080 (1)
+[2026-02-18 19:10:17 +0000] [1] [INFO] Using worker: gthread
+[2026-02-18 19:10:17 +0000] [6] [INFO] Booting worker with pid: 6
+2026-02-18 19:10:18,374 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8463464905:AAFWoVQaF-lB0XRXSkUPU0SLArO9qAFXygw/getMe "HTTP/1.1 200 OK"
+2026-02-18 19:10:18,375 - telegram.ext.Application - INFO - Application started
+2026-02-18 19:10:18,538 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8463464905:AAFWoVQaF-lB0XRXSkUPU0SLArO9qAFXygw/setWebhook "HTTP/1.1 200 OK"
+2026-02-18 19:10:18,538 - web_server - INFO - ✅ Webhook set: https://web-production-27466.up.railway.app/webhook
+2026-02-18 19:10:18,538 - web_server - INFO - 🔬 BERT Chart Scanner is live!
