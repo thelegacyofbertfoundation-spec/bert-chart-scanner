@@ -3,11 +3,3 @@ builder = "nixpacks"
 
 [deploy]
 startCommand = "python web_server.py"
-```
-
-Save, then:
-```
-cd C:\Users\Sjpch\OneDrive\Desktop\BertCS\screenshot-trade-bot
-git add -A
-git commit -m "Run python directly"
-git push --force
