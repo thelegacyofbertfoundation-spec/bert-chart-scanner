@@ -172,13 +172,26 @@ def _run_bot():
         await _bot_app.initialize()
         await _bot_app.start()
 
-        # Set webhook — this tells Telegram to POST updates to us
+        # Set webhook using raw API call (more reliable)
+        import urllib.request
+        import json as _json
         webhook_url = f"{WEBAPP_URL}/webhook"
-        await _bot_app.bot.set_webhook(
-            url=webhook_url,
-            drop_pending_updates=True
-        )
-        logger.info(f"✅ Webhook set: {webhook_url}")
+        
+        # First delete any existing webhook
+        req_data = _json.dumps({"drop_pending_updates": True}).encode("utf-8")
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/deleteWebhook",
+            data=req_data, headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=10)
+        
+        # Now set the new webhook
+        req_data = _json.dumps({"url": webhook_url}).encode("utf-8")
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook",
+            data=req_data, headers={"Content-Type": "application/json"})
+        resp = urllib.request.urlopen(req, timeout=10)
+        result = _json.loads(resp.read().decode())
+        logger.info(f"✅ Webhook set: {webhook_url} — {result}")
         logger.info(f"🔬 BERT Chart Scanner is live!")
 
         # Keep the loop alive
