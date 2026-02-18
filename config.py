@@ -4,8 +4,8 @@ Dr. Inker LABS - Screenshot-to-Trade Bot Configuration
 import os
 
 # === Bot Settings ===
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyC9V1byTlkiljccCvi3U-S9HE-z685dCmA")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 # === Gemini Settings ===
 GEMINI_MODEL = "gemini-2.0-flash"  # Fast + vision capable
@@ -24,7 +24,7 @@ WEBAPP_URL = os.getenv("WEBAPP_URL", "https://your-app.railway.app")
 
 # === Branding ===
 BOT_NAME = "BERT Chart Scanner"
-BOT_HANDLE = "@DrInkerChartBot"
+BOT_HANDLE = "@BertCS_bot"
 BRAND = "Dr. Inker LABS"
 BRAND_MASCOT = "BERT"
 BRAND_COLOR = "#00F5A0"
