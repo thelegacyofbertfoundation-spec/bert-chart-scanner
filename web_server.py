@@ -1,12 +1,13 @@
 """
 Dr. Inker LABS - Web Server + Telegram Bot (Webhook Mode)
-Single process: Flask serves Mini App + receives Telegram updates via webhook.
+Lazy-initializes bot on first request — works with gunicorn.
 """
 import os
 import json
 import asyncio
 import logging
 import threading
+import time
 from flask import Flask, render_template, jsonify, request, Response
 from telegram import Update
 from telegram.ext import (
@@ -32,9 +33,79 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
-# Global bot application + event loop
+# Bot state — lazy initialized
 _bot_app = None
 _bot_loop = None
+_initialized = False
+_init_lock = threading.Lock()
+
+
+# ═══════════════════════════════════════════
+# LAZY BOT INITIALIZATION
+# ═══════════════════════════════════════════
+
+def _build_application():
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("scan", scan_command))
+    application.add_handler(CommandHandler("history", history_command))
+    application.add_handler(CommandHandler("refer", refer_command))
+    application.add_handler(CommandHandler("premium", premium_command))
+    application.add_handler(CommandHandler("leaderboard", leaderboard_command))
+    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    application.add_handler(MessageHandler(filters.Document.IMAGE, handle_document_image))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    application.add_handler(CallbackQueryHandler(callback_handler))
+    application.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
+    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handler))
+    return application
+
+
+async def _async_init():
+    """Async init: build app, start it, set webhook."""
+    global _bot_app
+    _bot_app = _build_application()
+    await _bot_app.initialize()
+    await _bot_app.start()
+    logger.info("✅ Bot application initialized")
+
+
+def _run_event_loop():
+    """Run asyncio event loop in background thread."""
+    global _bot_loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    _bot_loop = loop
+    loop.run_forever()
+
+
+def _ensure_bot():
+    """Lazy-init bot on first request. Thread-safe."""
+    global _initialized
+    if _initialized:
+        return
+    with _init_lock:
+        if _initialized:
+            return
+        logger.info("🤖 Initializing bot (first request)...")
+
+        # Start event loop thread
+        thread = threading.Thread(target=_run_event_loop, daemon=True)
+        thread.start()
+
+        # Wait for loop to be ready
+        for _ in range(50):
+            if _bot_loop is not None:
+                break
+            time.sleep(0.1)
+
+        # Initialize bot in the event loop
+        future = asyncio.run_coroutine_threadsafe(_async_init(), _bot_loop)
+        future.result(timeout=30)
+
+        _initialized = True
+        logger.info("🔬 BERT Chart Scanner is live!")
 
 
 # ═══════════════════════════════════════════
@@ -107,15 +178,16 @@ def api_stats(user_id):
 
 @app.route("/webhook", methods=["POST"])
 def telegram_webhook():
-    """Receive Telegram updates via webhook — no polling needed."""
-    global _bot_app, _bot_loop
-    logger.info(f"📨 Webhook hit! bot_app={_bot_app is not None}, bot_loop={_bot_loop is not None}")
+    """Receive Telegram updates via webhook."""
+    _ensure_bot()
+
     if _bot_app is None or _bot_loop is None:
-        logger.error("Bot not ready!")
+        logger.error("❌ Bot not ready after init!")
         return Response("Bot not ready", status=503)
+
     try:
         data = request.get_json(force=True)
-        logger.info(f"📨 Update received: {data.get('update_id', '?')}")
+        logger.info(f"📨 Webhook update: {data.get('update_id', '?')}")
         update = Update.de_json(data, _bot_app.bot)
         future = asyncio.run_coroutine_threadsafe(
             _bot_app.process_update(update), _bot_loop
@@ -123,100 +195,39 @@ def telegram_webhook():
         future.result(timeout=60)
         return Response("ok", status=200)
     except Exception as e:
-        logger.error(f"Webhook error: {e}")
+        logger.error(f"Webhook error: {e}", exc_info=True)
         return Response("ok", status=200)
 
 
 # ═══════════════════════════════════════════
-# BOT INITIALIZATION (background thread)
-# ═══════════════════════════════════════════
-
-def _build_application():
-    """Create the Telegram Application with all handlers."""
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-    # Commands
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CommandHandler("scan", scan_command))
-    application.add_handler(CommandHandler("history", history_command))
-    application.add_handler(CommandHandler("refer", refer_command))
-    application.add_handler(CommandHandler("premium", premium_command))
-    application.add_handler(CommandHandler("leaderboard", leaderboard_command))
-
-    # Photos
-    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    application.add_handler(MessageHandler(filters.Document.IMAGE, handle_document_image))
-
-    # Text
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-
-    # Callbacks
-    application.add_handler(CallbackQueryHandler(callback_handler))
-
-    # Payments
-    application.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
-    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handler))
-
-    return application
-
-
-def _run_bot():
-    """Run the bot's async loop in a background thread."""
-    global _bot_app, _bot_loop
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    _bot_loop = loop
-
-    async def _start():
-        global _bot_app
-        _bot_app = _build_application()
-        await _bot_app.initialize()
-        await _bot_app.start()
-
-        # Set webhook using raw API call (more reliable)
-        import urllib.request
-        import json as _json
-        webhook_url = f"{WEBAPP_URL}/webhook"
-        
-        # First delete any existing webhook
-        req_data = _json.dumps({"drop_pending_updates": True}).encode("utf-8")
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/deleteWebhook",
-            data=req_data, headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(req, timeout=10)
-        
-        # Now set the new webhook
-        req_data = _json.dumps({"url": webhook_url}).encode("utf-8")
-        req = urllib.request.Request(
-            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook",
-            data=req_data, headers={"Content-Type": "application/json"})
-        resp = urllib.request.urlopen(req, timeout=10)
-        result = _json.loads(resp.read().decode())
-        logger.info(f"✅ Webhook set: {webhook_url} — {result}")
-        logger.info(f"🔬 BERT Chart Scanner is live!")
-
-        # Keep the loop alive
-        while True:
-            await asyncio.sleep(3600)
-
-    loop.run_until_complete(_start())
-
-
-# ═══════════════════════════════════════════
-# STARTUP
+# STARTUP — only init DB at module level
 # ═══════════════════════════════════════════
 
 logger.info("🔬 Dr. Inker Chart Scanner starting...")
 init_db()
 
-if TELEGRAM_BOT_TOKEN:
-    bot_thread = threading.Thread(target=_run_bot, daemon=True)
-    bot_thread.start()
-    logger.info("🤖 Bot thread started (webhook mode)")
-else:
-    logger.warning("⚠️ No TELEGRAM_BOT_TOKEN — bot not started")
+# Set webhook at startup (raw API, no bot app needed)
+if TELEGRAM_BOT_TOKEN and WEBAPP_URL:
+    try:
+        import urllib.request as _urlreq
+        webhook_url = f"{WEBAPP_URL}/webhook"
+
+        _data = json.dumps({"drop_pending_updates": True}).encode("utf-8")
+        _req = _urlreq.Request(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/deleteWebhook",
+            data=_data, headers={"Content-Type": "application/json"})
+        _urlreq.urlopen(_req, timeout=10)
+
+        _data = json.dumps({"url": webhook_url}).encode("utf-8")
+        _req = _urlreq.Request(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/setWebhook",
+            data=_data, headers={"Content-Type": "application/json"})
+        _resp = _urlreq.urlopen(_req, timeout=10)
+        _result = json.loads(_resp.read().decode())
+        logger.info(f"✅ Webhook set: {webhook_url} — {_result}")
+    except Exception as e:
+        logger.error(f"❌ Failed to set webhook: {e}")
+# Bot app init happens lazily on first webhook request
 
 
 if __name__ == "__main__":
