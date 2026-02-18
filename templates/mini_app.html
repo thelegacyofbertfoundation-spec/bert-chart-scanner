@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dr. Inker Chart Scanner</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg: #0a0e17;
+            --bg2: #111827;
+            --bg3: #1a2332;
+            --accent: #00F5A0;
+            --accent2: #00D9F5;
+            --red: #FF4757;
+            --orange: #FFA502;
+            --yellow: #FFD93D;
+            --text: #E8ECF1;
+            --text2: #8899AA;
+            --border: #1e2d3d;
+            --card: linear-gradient(135deg, #111827 0%, #1a2332 100%);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            padding: 20px 16px 16px;
+            background: linear-gradient(180deg, rgba(0,245,160,0.08) 0%, transparent 100%);
+            border-bottom: 1px solid var(--border);
+        }
+        .header-top {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .logo {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .logo-icon {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .logo-icon img {
+            width: 100%; height: 100%; object-fit: contain;
+        }
+        .logo-text {
+            font-size: 16px; font-weight: 700;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .logo-sub { font-size: 11px; color: var(--text2); }
+
+        /* Energy Bar */
+        .energy-bar {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .energy-left { display: flex; align-items: center; gap: 8px; }
+        .energy-icon { font-size: 20px; }
+        .energy-count { font-size: 22px; font-weight: 800; color: var(--accent); }
+        .energy-label { font-size: 11px; color: var(--text2); }
+        .energy-right { text-align: right; }
+        .premium-badge {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            color: #000; font-size: 11px; font-weight: 700;
+            padding: 4px 10px; border-radius: 20px;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex; padding: 12px 16px 0; gap: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+        .tab {
+            flex: 1; padding: 10px; text-align: center;
+            font-size: 13px; font-weight: 600;
+            color: var(--text2); cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        /* Content */
+        .content { padding: 16px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            margin-bottom: 16px;
+        }
+        .stat-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+        }
+        .stat-value {
+            font-size: 24px; font-weight: 800;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .stat-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+        /* Distribution Bars */
+        .dist-section { margin-bottom: 20px; }
+        .dist-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+        .dist-bar-wrap { margin-bottom: 8px; }
+        .dist-bar-label {
+            display: flex; justify-content: space-between;
+            font-size: 12px; margin-bottom: 4px;
+        }
+        .dist-bar-label span:first-child { color: var(--text); }
+        .dist-bar-label span:last-child { color: var(--text2); }
+        .dist-bar-bg {
+            height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden;
+        }
+        .dist-bar-fill {
+            height: 100%; border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+
+        /* Scan Cards */
+        .scan-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .scan-card:active { border-color: var(--accent); }
+        .scan-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px;
+        }
+        .scan-token { font-size: 16px; font-weight: 700; }
+        .scan-ticker { color: var(--text2); font-size: 13px; }
+        .scan-meta {
+            display: flex; gap: 8px; flex-wrap: wrap;
+        }
+        .scan-tag {
+            font-size: 11px; font-weight: 600;
+            padding: 4px 10px; border-radius: 20px;
+            border: 1px solid;
+        }
+        .tag-bullish { color: var(--accent); border-color: rgba(0,245,160,0.3); background: rgba(0,245,160,0.08); }
+        .tag-bearish { color: var(--red); border-color: rgba(255,71,87,0.3); background: rgba(255,71,87,0.08); }
+        .tag-sideways { color: var(--yellow); border-color: rgba(255,217,61,0.3); background: rgba(255,217,61,0.08); }
+        .tag-buy { color: #00FF88; border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.08); }
+        .tag-sell { color: var(--red); border-color: rgba(255,71,87,0.3); background: rgba(255,71,87,0.08); }
+        .tag-hold { color: var(--yellow); border-color: rgba(255,217,61,0.3); background: rgba(255,217,61,0.08); }
+        .tag-wait { color: var(--text2); border-color: rgba(136,153,170,0.3); background: rgba(136,153,170,0.08); }
+        .scan-verdict {
+            font-size: 12px; color: var(--text2);
+            margin-top: 8px; line-height: 1.4;
+        }
+        .scan-date { font-size: 11px; color: var(--text2); }
+        .scan-confidence {
+            display: flex; align-items: center; gap: 4px;
+            font-size: 12px; color: var(--text2);
+        }
+        .conf-dots { display: flex; gap: 2px; }
+        .conf-dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--border);
+        }
+        .conf-dot.filled { background: var(--accent); }
+
+        /* Leaderboard */
+        .leader-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+        .leader-rank {
+            font-size: 18px; width: 30px; text-align: center;
+        }
+        .leader-name { flex: 1; font-weight: 600; font-size: 14px; }
+        .leader-scans {
+            font-size: 14px; font-weight: 700; color: var(--accent);
+        }
+
+        /* Scan Detail Modal */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .modal-overlay.active { display: block; }
+        .modal-content {
+            max-width: 400px; margin: 40px auto;
+            padding: 20px; background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+        }
+        .modal-close {
+            float: right; font-size: 24px; cursor: pointer;
+            color: var(--text2); background: none; border: none;
+            padding: 4px 8px;
+        }
+        .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+        .modal-section { margin-bottom: 16px; }
+        .modal-section-title {
+            font-size: 12px; font-weight: 700; color: var(--accent);
+            text-transform: uppercase; letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .modal-row {
+            display: flex; justify-content: space-between;
+            padding: 6px 0; font-size: 13px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .modal-row-label { color: var(--text2); }
+        .modal-row-value { font-weight: 600; }
+        .modal-analysis {
+            font-size: 13px; line-height: 1.6; color: var(--text);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center; padding: 40px 20px;
+            color: var(--text2);
+        }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-text { font-size: 14px; line-height: 1.5; }
+
+        /* Loading */
+        .loading {
+            text-align: center; padding: 40px;
+            color: var(--text2); font-size: 14px;
+        }
+        .spinner {
+            width: 32px; height: 32px; border: 3px solid var(--border);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-top">
+            <div class="logo">
+                <div class="logo-icon"><img src="/static/bert_logo.png" alt="BERT"></div>
+                <div>
+                    <div class="logo-text">BERT Chart Scanner</div>
+                    <div class="logo-sub">Dr. Inker LABS</div>
+                </div>
+            </div>
+            <div id="premiumBadge" style="display:none;">
+                <span class="premium-badge">👑 PREMIUM</span>
+            </div>
+        </div>
+        <div class="energy-bar">
+            <div class="energy-left">
+                <span class="energy-icon">⚡</span>
+                <div>
+                    <div class="energy-count" id="energyCount">-</div>
+                    <div class="energy-label">scans remaining</div>
+                </div>
+            </div>
+            <div class="energy-right">
+                <div class="energy-label" id="totalScansLabel">0 total scans</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab active" data-tab="history">📜 History</div>
+        <div class="tab" data-tab="stats">📊 Stats</div>
+        <div class="tab" data-tab="leaderboard">🏆 Board</div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="content">
+        <!-- History Tab -->
+        <div class="tab-content active" id="tab-history">
+            <div class="loading" id="historyLoading">
+                <div class="spinner"></div>
+                Loading scan history...
+            </div>
+            <div id="historyList"></div>
+        </div>
+
+        <!-- Stats Tab -->
+        <div class="tab-content" id="tab-stats">
+            <div class="loading" id="statsLoading">
+                <div class="spinner"></div>
+                Loading analytics...
+            </div>
+            <div id="statsContent" style="display:none;"></div>
+        </div>
+
+        <!-- Leaderboard Tab -->
+        <div class="tab-content" id="tab-leaderboard">
+            <div class="loading" id="leaderLoading">
+                <div class="spinner"></div>
+                Loading leaderboard...
+            </div>
+            <div id="leaderList"></div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal-content" id="modalBody"></div>
+    </div>
+
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+            tg.setHeaderColor('#0a0e17');
+            tg.setBackgroundColor('#0a0e17');
+        }
+
+        const USER_ID = new URLSearchParams(window.location.search).get('user_id') || '0';
+        const BASE_URL = window.location.origin;
+
+        // ═══════════════════════════════════
+        // TABS
+        // ═══════════════════════════════════
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+
+                if (tab.dataset.tab === 'stats') loadStats();
+                if (tab.dataset.tab === 'leaderboard') loadLeaderboard();
+            });
+        });
+
+        // ═══════════════════════════════════
+        // LOAD ENERGY
+        // ═══════════════════════════════════
+        async function loadEnergy() {
+            try {
+                const res = await fetch(`${BASE_URL}/api/energy/${USER_ID}`);
+                const data = await res.json();
+                document.getElementById('energyCount').textContent = 
+                    data.is_premium ? '∞' : data.total_remaining;
+                document.getElementById('totalScansLabel').textContent = 
+                    `${data.total_scans_ever} total scans`;
+                if (data.is_premium) {
+                    document.getElementById('premiumBadge').style.display = 'block';
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // ═══════════════════════════════════
+        // LOAD HISTORY
+        // ═══════════════════════════════════
+        let allScans = [];
+        async function loadHistory() {
+            try {
+                const res = await fetch(`${BASE_URL}/api/history/${USER_ID}`);
+                const data = await res.json();
+                allScans = data.scans || [];
+                document.getElementById('historyLoading').style.display = 'none';
+                renderHistory();
+            } catch (e) {
+                document.getElementById('historyLoading').innerHTML = '❌ Failed to load';
+            }
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('historyList');
+            if (allScans.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📸</div>
+                        <div class="empty-text">No scans yet!<br>Send a chart screenshot to the bot to get started.</div>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = allScans.map((scan, idx) => {
+                const trendClass = (scan.trend || '').toLowerCase();
+                const actionClass = (scan.action || '').toLowerCase();
+                const conf = scan.confidence || 0;
+                const dots = Array.from({length: 10}, (_, i) => 
+                    `<div class="conf-dot ${i < conf ? 'filled' : ''}"></div>`
+                ).join('');
+                const date = new Date(scan.created_at).toLocaleDateString('en-US', {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+
+                return `
+                <div class="scan-card" onclick="showDetail(${idx})">
+                    <div class="scan-header">
+                        <div>
+                            <span class="scan-token">${scan.token || 'Unknown'}</span>
+                            <span class="scan-ticker">${scan.ticker ? '(' + scan.ticker + ')' : ''}</span>
+                        </div>
+                        <span class="scan-date">${date}</span>
+                    </div>
+                    <div class="scan-meta">
+                        <span class="scan-tag tag-${trendClass}">${scan.trend || '?'}</span>
+                        <span class="scan-tag tag-${actionClass}">${scan.action || '?'}</span>
+                        <span class="scan-tag" style="color:var(--text2);border-color:var(--border);">Risk: ${scan.risk_level || '?'}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                        <div class="scan-verdict">${scan.verdict || ''}</div>
+                        <div class="scan-confidence">
+                            <div class="conf-dots">${dots}</div>
+                            <span>${conf}/10</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // ═══════════════════════════════════
+        // DETAIL MODAL
+        // ═══════════════════════════════════
+        function showDetail(idx) {
+            const scan = allScans[idx];
+            if (!scan) return;
+
+            let analysis = scan.full_analysis;
+            if (typeof analysis === 'string') {
+                try { analysis = JSON.parse(analysis); } catch(e) { analysis = {}; }
+            }
+            analysis = analysis || {};
+
+            const supports = (analysis.support_levels || []).join(' / ') || 'N/A';
+            const resistances = (analysis.resistance_levels || []).join(' / ') || 'N/A';
+            const patterns = (analysis.chart_patterns || []).join(', ') || 'None detected';
+
+            document.getElementById('modalBody').innerHTML = `
+                <button class="modal-close" onclick="closeModal()">✕</button>
+                <div class="modal-title">${scan.token || 'Unknown'} ${scan.ticker ? '(' + scan.ticker + ')' : ''}</div>
+
+                <div class="modal-section">
+                    <div class="modal-section-title">Overview</div>
+                    <div class="modal-row"><span class="modal-row-label">Platform</span><span class="modal-row-value">${analysis.platform || 'N/A'}</span></div>
+                    <div class="modal-row"><span class="modal-row-label">Timeframe</span><span class="modal-row-value">${analysis.timeframe || 'N/A'}</span></div>
+                    <div class="modal-row"><span class="modal-row-label">Price</span><span class="modal-row-value">${analysis.current_price || 'N/A'}</span></div>
+                    <div class="modal-row"><span class="modal-row-label">Trend</span><span class="modal-row-value">${scan.trend || 'N/A'} (${analysis.trend_strength || 'N/A'})</span></div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="modal-section-title">Key Levels</div>
+                    <div class="modal-row"><span class="modal-row-label">Support</span><span class="modal-row-value">${supports}</span></div>
+                    <div class="modal-row"><span class="modal-row-label">Resistance</span><span class="modal-row-value">${resistances}</span></div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="modal-section-title">Patterns</div>
+                    <div class="modal-row"><span class="modal-row-label">Chart</span><span class="modal-row-value">${patterns}</span></div>
+                    <div class="modal-row"><span class="modal-row-label">Volume</span><span class="modal-row-value">${analysis.volume_trend || 'N/A'}</span></div>
+                </div>
+
+                <div class="modal-section">
+                    <div class="modal-section-title">Verdict</div>
+                    <div class="modal-row"><span class="modal-row-label">Action</span><span class="modal-row-value">${scan.action || 'N/A'}</span></div>
+                    <div class="modal-row"><span class="modal-row-label">Risk</span><span class="modal-row-value">${scan.risk_level || 'N/A'}</span></div>
+                    <div class="modal-row"><span class="modal-row-label">Confidence</span><span class="modal-row-value">${scan.confidence || 0}/10</span></div>
+                </div>
+
+                ${analysis.detailed_analysis ? `
+                <div class="modal-section">
+                    <div class="modal-section-title">Detailed Analysis</div>
+                    <div class="modal-analysis">${analysis.detailed_analysis}</div>
+                </div>
+                ` : ''}
+
+                ${analysis.risk_notes ? `
+                <div class="modal-section">
+                    <div class="modal-section-title">Risk Notes</div>
+                    <div class="modal-analysis">${analysis.risk_notes}</div>
+                </div>
+                ` : ''}
+            `;
+
+            document.getElementById('detailModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('active');
+        }
+        document.getElementById('detailModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeModal();
+        });
+
+        // ═══════════════════════════════════
+        // LOAD STATS
+        // ═══════════════════════════════════
+        async function loadStats() {
+            const container = document.getElementById('statsContent');
+            const loading = document.getElementById('statsLoading');
+            try {
+                const res = await fetch(`${BASE_URL}/api/stats/${USER_ID}`);
+                const data = await res.json();
+                loading.style.display = 'none';
+                container.style.display = 'block';
+
+                if (data.total_scans === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">📊</div>
+                            <div class="empty-text">No data yet. Start scanning charts to see your analytics!</div>
+                        </div>`;
+                    return;
+                }
+
+                const avgConf = (data.avg_confidence || 0).toFixed(1);
+                const topTokensHTML = (data.top_tokens || []).slice(0, 5).map(t =>
+                    `<div class="modal-row"><span class="modal-row-label">${t.token}</span><span class="modal-row-value">${t.count} scans</span></div>`
+                ).join('');
+
+                container.innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value">${data.total_scans}</div>
+                            <div class="stat-label">Total Scans</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${avgConf}</div>
+                            <div class="stat-label">Avg Confidence</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${(data.top_tokens || []).length}</div>
+                            <div class="stat-label">Unique Tokens</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${data.action_distribution?.BUY || 0}</div>
+                            <div class="stat-label">Buy Signals</div>
+                        </div>
+                    </div>
+
+                    ${renderDistribution('Trend Distribution', data.trend_distribution, {
+                        'Bullish': 'var(--accent)', 'Bearish': 'var(--red)', 'Sideways': 'var(--yellow)'
+                    })}
+
+                    ${renderDistribution('Action Distribution', data.action_distribution, {
+                        'BUY': '#00FF88', 'SELL': 'var(--red)', 'HOLD': 'var(--yellow)', 'WAIT': 'var(--text2)'
+                    })}
+
+                    ${renderDistribution('Risk Distribution', data.risk_distribution, {
+                        'LOW': 'var(--accent)', 'MEDIUM': 'var(--yellow)', 'HIGH': 'var(--orange)', 'EXTREME': 'var(--red)'
+                    })}
+
+                    ${topTokensHTML ? `
+                    <div class="dist-section">
+                        <div class="dist-title">Top Scanned Tokens</div>
+                        ${topTokensHTML}
+                    </div>` : ''}
+                `;
+            } catch (e) {
+                loading.innerHTML = '❌ Failed to load stats';
+            }
+        }
+
+        function renderDistribution(title, dist, colors) {
+            if (!dist || Object.keys(dist).length === 0) return '';
+            const total = Object.values(dist).reduce((a, b) => a + b, 0);
+            const bars = Object.entries(dist).map(([key, val]) => {
+                const pct = total > 0 ? (val / total * 100).toFixed(0) : 0;
+                const color = colors[key] || 'var(--accent)';
+                return `
+                    <div class="dist-bar-wrap">
+                        <div class="dist-bar-label">
+                            <span>${key}</span>
+                            <span>${val} (${pct}%)</span>
+                        </div>
+                        <div class="dist-bar-bg">
+                            <div class="dist-bar-fill" style="width:${pct}%;background:${color};"></div>
+                        </div>
+                    </div>`;
+            }).join('');
+            return `<div class="dist-section"><div class="dist-title">${title}</div>${bars}</div>`;
+        }
+
+        // ═══════════════════════════════════
+        // LOAD LEADERBOARD
+        // ═══════════════════════════════════
+        async function loadLeaderboard() {
+            const container = document.getElementById('leaderList');
+            const loading = document.getElementById('leaderLoading');
+            try {
+                const res = await fetch(`${BASE_URL}/api/leaderboard`);
+                const data = await res.json();
+                loading.style.display = 'none';
+
+                if (!data.leaderboard || data.leaderboard.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">🏆</div>
+                            <div class="empty-text">No entries yet. Start scanning to claim the top spot!</div>
+                        </div>`;
+                    return;
+                }
+
+                const medals = ['🥇', '🥈', '🥉'];
+                container.innerHTML = data.leaderboard.map((user, i) => `
+                    <div class="leader-row">
+                        <div class="leader-rank">${medals[i] || (i + 1)}</div>
+                        <div class="leader-name">${user.first_name || user.username || 'Anonymous'}</div>
+                        <div class="leader-scans">${user.total_scans} scans</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                loading.innerHTML = '❌ Failed to load';
+            }
+        }
+
+        // ═══════════════════════════════════
+        // INIT
+        // ═══════════════════════════════════
+        loadEnergy();
+        loadHistory();
+    </script>
+</body>
+</html>
