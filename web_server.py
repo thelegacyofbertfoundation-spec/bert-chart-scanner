@@ -109,10 +109,13 @@ def api_stats(user_id):
 def telegram_webhook():
     """Receive Telegram updates via webhook — no polling needed."""
     global _bot_app, _bot_loop
+    logger.info(f"📨 Webhook hit! bot_app={_bot_app is not None}, bot_loop={_bot_loop is not None}")
     if _bot_app is None or _bot_loop is None:
+        logger.error("Bot not ready!")
         return Response("Bot not ready", status=503)
     try:
         data = request.get_json(force=True)
+        logger.info(f"📨 Update received: {data.get('update_id', '?')}")
         update = Update.de_json(data, _bot_app.bot)
         future = asyncio.run_coroutine_threadsafe(
             _bot_app.process_update(update), _bot_loop
@@ -218,4 +221,4 @@ else:
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
